@@ -156,9 +156,11 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     }
 
     public synchronized T get() {
+        // 若该服务已经销毁,则抛异常
         if (destroyed) {
             throw new IllegalStateException("Already destroyed!");
         }
+        // 初始化
         if (ref == null) {
             init();
         }
@@ -183,6 +185,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     }
 
     private void init() {
+        // 若已经初始化则直接返回
         if (initialized) {
             return;
         }
@@ -192,31 +195,45 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         }
         // get consumer's global configuration
         checkDefault();
+        // 读取属性配置到ReferenceConfig
         appendProperties(this);
+        // referenceConfig的generic属性缺省值, consumerConfig.generic
         if (getGeneric() == null && getConsumer() != null) {
             setGeneric(getConsumer().getGeneric());
         }
+        // 泛化接口的实现
         if (ProtocolUtils.isGeneric(getGeneric())) {
             interfaceClass = GenericService.class;
-        } else {
+        } else {    // 普通接口实现
             try {
                 interfaceClass = Class.forName(interfaceName, true, Thread.currentThread()
                         .getContextClassLoader());
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
+            // 接口和方法校验(是否存在)
             checkInterfaceAndMethods(interfaceClass, methods);
         }
+
+        // 直连提供者
+        // 优先级:  system env -> mapping file -> reference config
+        // 例如: system env: -Dcom.alibaba.xxx.XxxService=dubbo://localhost:20890
+        // mapping file: -Ddubbo.resolve.file=xxx.properties
+
+        // 从环境变量中取
         String resolve = System.getProperty(interfaceName);
         String resolveFile = null;
         if (resolve == null || resolve.length() == 0) {
+            // 从mapping file中(直连第二优先级),默认优先加载 dubbo.resolve.file
             resolveFile = System.getProperty("dubbo.resolve.file");
             if (resolveFile == null || resolveFile.length() == 0) {
+                // 其次, 加载 ${user.home}/dubbo-resolve.properties文件
                 File userResolveFile = new File(new File(System.getProperty("user.home")), "dubbo-resolve.properties");
                 if (userResolveFile.exists()) {
                     resolveFile = userResolveFile.getAbsolutePath();
                 }
             }
+            // 若映射文件存在,则读取直连配置
             if (resolveFile != null && resolveFile.length() > 0) {
                 Properties properties = new Properties();
                 FileInputStream fis = null;
@@ -235,6 +252,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 resolve = properties.getProperty(interfaceName);
             }
         }
+        // 若resolve!=null, 设置直连url
         if (resolve != null && resolve.length() > 0) {
             url = resolve;
             if (logger.isWarnEnabled()) {
@@ -245,6 +263,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
             }
         }
+        // 从consumer中读取 application,module,registries,monitor配置
         if (consumer != null) {
             if (application == null) {
                 application = consumer.getApplication();
@@ -259,6 +278,8 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 monitor = consumer.getMonitor();
             }
         }
+
+        // 从module中读取 registries,monitor配置
         if (module != null) {
             if (registries == null) {
                 registries = module.getRegistries();
@@ -267,6 +288,8 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 monitor = module.getMonitor();
             }
         }
+
+        // 从application中 读取registries,monitor配置
         if (application != null) {
             if (registries == null) {
                 registries = application.getRegistries();
@@ -275,8 +298,12 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 monitor = application.getMonitor();
             }
         }
+        // 校验 application 配置
         checkApplication();
+        // 校验 stub 和 mock 配置
         checkStubAndMock(interfaceClass);
+
+        // 基本参数装填 side_key,dubbo,timestamp,pid等
         Map<String, String> map = new HashMap<String, String>();
         Map<Object, Object> attributes = new HashMap<Object, Object>();
         map.put(Constants.SIDE_KEY, Constants.CONSUMER_SIDE);
@@ -285,6 +312,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (ConfigUtils.getPid() > 0) {
             map.put(Constants.PID_KEY, String.valueOf(ConfigUtils.getPid()));
         }
+        // methods,revision,interface装填
         if (!isGeneric()) {
             String revision = Version.getVersion(interfaceClass, version);
             if (revision != null && revision.length() > 0) {
@@ -300,10 +328,13 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             }
         }
         map.put(Constants.INTERFACE_KEY, interfaceName);
+        // application,module,consumer等的装填
         appendParameters(map, application);
         appendParameters(map, module);
         appendParameters(map, consumer, Constants.DEFAULT_KEY);
         appendParameters(map, this);
+
+        //group/interface:version
         String prefix = StringUtils.getServiceKey(map);
         if (methods != null && !methods.isEmpty()) {
             for (MethodConfig method : methods) {
@@ -432,6 +463,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (consumer == null) {
             consumer = new ConsumerConfig();
         }
+        // 读取属性配置到ConsumerConfig
         appendProperties(consumer);
     }
 
