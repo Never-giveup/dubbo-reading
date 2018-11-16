@@ -139,13 +139,23 @@ public class ConfigUtils {
         return sb.toString();
     }
 
+    /**
+     *  configUtils 加载dubbo配置properties文件
+     *      1. JVM启动参数,部署和启动时进行参数重写
+     *      2. 环境变量
+     *      3. 默认的缺省值
+     * @return
+     */
     public static Properties getProperties() {
         if (PROPERTIES == null) {
             synchronized (ConfigUtils.class) {
                 if (PROPERTIES == null) {
+                    // JVM 启动参数优先
                     String path = System.getProperty(Constants.DUBBO_PROPERTIES_KEY);
                     if (path == null || path.length() == 0) {
+                        // 环境变量
                         path = System.getenv(Constants.DUBBO_PROPERTIES_KEY);
+                        // 默认
                         if (path == null || path.length() == 0) {
                             path = Constants.DEFAULT_DUBBO_PROPERTIES;
                         }
