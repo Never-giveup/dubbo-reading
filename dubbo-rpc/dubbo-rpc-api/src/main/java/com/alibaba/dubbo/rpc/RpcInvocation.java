@@ -34,12 +34,24 @@ public class RpcInvocation implements Invocation, Serializable {
 
     private static final long serialVersionUID = -4355285085441097045L;
 
+    /**
+     *  方法名
+     */
     private String methodName;
 
+    /**
+     * 参数类型
+     */
     private Class<?>[] parameterTypes;
 
+    /**
+     * 参数值
+     */
     private Object[] arguments;
 
+    /**
+     * 隐式参数的KV对
+     */
     private Map<String, String> attachments;
 
     private transient Invoker<?> invoker;
@@ -51,6 +63,7 @@ public class RpcInvocation implements Invocation, Serializable {
         this(invocation.getMethodName(), invocation.getParameterTypes(),
                 invocation.getArguments(), new HashMap<String, String>(invocation.getAttachments()),
                 invocation.getInvoker());
+        // path,interface,group,version,timeout,token,application是保留字段,不能作为隐式参数传递
         if (invoker != null) {
             URL url = invoker.getUrl();
             setAttachment(Constants.PATH_KEY, url.getPath());
