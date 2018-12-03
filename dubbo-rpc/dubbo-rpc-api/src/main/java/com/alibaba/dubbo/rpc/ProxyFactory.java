@@ -39,6 +39,8 @@ public interface ProxyFactory {
     /**
      * create proxy.
      *
+     * 创建proxy 在引用服务时调用
+     *
      * @param invoker
      * @return proxy
      */
@@ -47,6 +49,8 @@ public interface ProxyFactory {
 
     /**
      * create invoker.
+     *
+     * 创建Invoker， 暴漏服务时调用
      *
      * @param <T>
      * @param proxy
