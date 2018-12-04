@@ -80,6 +80,9 @@ public class ExtensionLoader<T> {
 
     private final ConcurrentMap<Class<?>, String> cachedNames = new ConcurrentHashMap<Class<?>, String>();
 
+    /**
+     *  缓存的实现类集合
+     */
     private final Holder<Map<String, Class<?>>> cachedClasses = new Holder<Map<String, Class<?>>>();
 
     private final Map<String, Activate> cachedActivates = new ConcurrentHashMap<String, Activate>();
@@ -546,12 +549,17 @@ public class ExtensionLoader<T> {
         return clazz;
     }
 
+    /**
+     *  从缓存的实现类集合中获取拓展实现类
+     * @return
+     */
     private Map<String, Class<?>> getExtensionClasses() {
         Map<String, Class<?>> classes = cachedClasses.get();
         if (classes == null) {
             synchronized (cachedClasses) {
                 classes = cachedClasses.get();
                 if (classes == null) {
+                    // 第一次加载拓展实现类
                     classes = loadExtensionClasses();
                     cachedClasses.set(classes);
                 }
@@ -560,10 +568,19 @@ public class ExtensionLoader<T> {
         return classes;
     }
 
-    // synchronized in getExtensionClasses
+    /**
+     *  加载拓展类数组
+     *      加载SPI相关拓展实现类
+     *    并不会
+     *  synchronized in getExtensionClasses
+     * @return
+     */
     private Map<String, Class<?>> loadExtensionClasses() {
+        // 通过类的SPI注解获得默认的扩展实现类名
+        // 获得类的SPI注解
         final SPI defaultAnnotation = type.getAnnotation(SPI.class);
         if (defaultAnnotation != null) {
+            // 获得 SPI注解 设置的拓展实现类名
             String value = defaultAnnotation.value();
             if ((value = value.trim()).length() > 0) {
                 String[] names = NAME_SEPARATOR.split(value);
@@ -575,18 +592,25 @@ public class ExtensionLoader<T> {
             }
         }
 
+        // 拓展类加载规则详情查看dubbo.gitbooks https://dubbo.gitbooks.io/dubbo-dev-book/SPI.html
+        // 从配置文件中加载拓展实现类
         Map<String, Class<?>> extensionClasses = new HashMap<String, Class<?>>();
+        // META-INF/dubbo/internal/
         loadDirectory(extensionClasses, DUBBO_INTERNAL_DIRECTORY);
+        // META-INF/dubbo/
         loadDirectory(extensionClasses, DUBBO_DIRECTORY);
+        // META-INF/services/
         loadDirectory(extensionClasses, SERVICES_DIRECTORY);
         return extensionClasses;
     }
 
     private void loadDirectory(Map<String, Class<?>> extensionClasses, String dir) {
+        // 文件路径+类的全限定类名(包括包名)，即完整的文件类名
         String fileName = dir + type.getName();
         try {
             Enumeration<java.net.URL> urls;
             ClassLoader classLoader = findClassLoader();
+            // 使用类加载器获取所有的拓展类名
             if (classLoader != null) {
                 urls = classLoader.getResources(fileName);
             } else {
@@ -610,6 +634,7 @@ public class ExtensionLoader<T> {
             try {
                 String line;
                 while ((line = reader.readLine()) != null) {
+                    // 过滤调以#开头的情况
                     final int ci = line.indexOf('#');
                     if (ci >= 0) line = line.substring(0, ci);
                     line = line.trim();
