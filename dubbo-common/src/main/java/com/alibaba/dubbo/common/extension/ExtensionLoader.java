@@ -571,7 +571,11 @@ public class ExtensionLoader<T> {
     /**
      *  加载拓展类数组
      *      加载SPI相关拓展实现类
-     *    并不会
+     *    并不会加载以下两种类型:
+     *      1. 自适应拓展实现类, 例如,AdaptiveExtensionFactory,拓展Adaptive实现类,会被添加到cachedAdaptiveClass中
+     *      2. 带唯一参数为拓展接口的构造方法实现类，或者说拓展Wrappers实现类,例如 ProtocolFilterWrapper 类
+     *    会被添加到 cachedWrapperClasses 中
+     *  @see #loadClass(Map, java.net.URL, Class, String) 会将以上两种拓展实现类 放到对应的实现类集合中
      *  synchronized in getExtensionClasses
      * @return
      */
@@ -630,17 +634,22 @@ public class ExtensionLoader<T> {
 
     private void loadResource(Map<String, Class<?>> extensionClasses, ClassLoader classLoader, java.net.URL resourceURL) {
         try {
+            // 以下注释以 META-INF/dubbo/internal/com.alibaba.dubbo.rpc.Protocol 为例
+
+            // 读取文件
             BufferedReader reader = new BufferedReader(new InputStreamReader(resourceURL.openStream(), "utf-8"));
             try {
                 String line;
+                // 开始解析
                 while ((line = reader.readLine()) != null) {
-                    // 过滤调以#开头的情况
+                    // 跳过当前被注释掉的情况,  #spring=xxxxxxx
                     final int ci = line.indexOf('#');
                     if (ci >= 0) line = line.substring(0, ci);
                     line = line.trim();
                     if (line.length() > 0) {
                         try {
                             String name = null;
+                            // 解析文件内容, 例如: Protocol内dubbo=com.alibaba.dubbo.rpc.protocol.dubbo.DubboProtocol
                             int i = line.indexOf('=');
                             if (i > 0) {
                                 name = line.substring(0, i).trim();
@@ -665,11 +674,13 @@ public class ExtensionLoader<T> {
     }
 
     private void loadClass(Map<String, Class<?>> extensionClasses, java.net.URL resourceURL, Class<?> clazz, String name) throws NoSuchMethodException {
+        // 确定type与clazz接口的关系, 同类、超类或者接口，即 clazz是否可以转换为type所属类型
         if (!type.isAssignableFrom(clazz)) {
             throw new IllegalStateException("Error when load extension class(interface: " +
                     type + ", class line: " + clazz.getName() + "), class "
                     + clazz.getName() + "is not subtype of interface.");
         }
+        // 判断clazz是否存在Adaptive注解，存在则将对应的拓展类缓存到cachedAdaptiveClass集合中
         if (clazz.isAnnotationPresent(Adaptive.class)) {
             if (cachedAdaptiveClass == null) {
                 cachedAdaptiveClass = clazz;
@@ -679,6 +690,7 @@ public class ExtensionLoader<T> {
                         + ", " + clazz.getClass().getName());
             }
         } else if (isWrapperClass(clazz)) {
+            // 若clazz是 type 的wrapper拓展类，则缓存到cachedWrapperClasses类
             Set<Class<?>> wrappers = cachedWrapperClasses;
             if (wrappers == null) {
                 cachedWrapperClasses = new ConcurrentHashSet<Class<?>>();
@@ -686,6 +698,9 @@ public class ExtensionLoader<T> {
             }
             wrappers.add(clazz);
         } else {
+            // 其他扩展类，统一缓存到 extensionClasses 中
+
+            // 兼容 Java SPI 配置
             clazz.getConstructor();
             if (name == null || name.length() == 0) {
                 name = findAnnotationName(clazz);
@@ -693,16 +708,20 @@ public class ExtensionLoader<T> {
                     throw new IllegalStateException("No such extension name for the class " + clazz.getName() + " in the config " + resourceURL);
                 }
             }
+            // 获得拓展类，可能是数组，有多个拓展名，例如: dubbo=com.alibaba.dubbo.rpc.protocol.dubbo.DubboProtocol  name = dubbo
             String[] names = NAME_SEPARATOR.split(name);
             if (names != null && names.length > 0) {
+                // 获取 clazz 的 Active 注解,缓存到 cachedActivates 集合中
                 Activate activate = clazz.getAnnotation(Activate.class);
                 if (activate != null) {
                     cachedActivates.put(names[0], activate);
                 }
                 for (String n : names) {
+                    // 缓存拓展类name到 cacheNames 中
                     if (!cachedNames.containsKey(clazz)) {
                         cachedNames.put(clazz, n);
                     }
+                    // 缓存到 extensionClasses 中
                     Class<?> c = extensionClasses.get(n);
                     if (c == null) {
                         extensionClasses.put(n, clazz);
@@ -725,9 +744,12 @@ public class ExtensionLoader<T> {
 
     @SuppressWarnings("deprecation")
     private String findAnnotationName(Class<?> clazz) {
+        // deprecation 已过期, 兼容Java SPI配置
         com.alibaba.dubbo.common.Extension extension = clazz.getAnnotation(com.alibaba.dubbo.common.Extension.class);
         if (extension == null) {
+            // 类名
             String name = clazz.getSimpleName();
+            // 拓展类以name结尾
             if (name.endsWith(type.getSimpleName())) {
                 name = name.substring(0, name.length() - type.getSimpleName().length());
             }
