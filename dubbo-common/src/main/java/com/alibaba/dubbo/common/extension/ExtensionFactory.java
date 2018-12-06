@@ -18,7 +18,7 @@ package com.alibaba.dubbo.common.extension;
 
 /**
  * ExtensionFactory
- * 拓展工厂接口
+ * 拓展工厂接口,基于 Dubbo SPI 加载具体拓展实现类
  *  自适应拓展实现类，
  *  @see ExtensionLoader#ExtensionLoader(Class) 中，初始化objectFactory
  */
@@ -27,6 +27,8 @@ public interface ExtensionFactory {
 
     /**
      * Get extension.
+     *
+     * @see ExtensionLoader#injectExtension(Object) 用于注入依赖属性
      *
      * @param type object type. 拓展接口
      * @param name object name. 拓展名

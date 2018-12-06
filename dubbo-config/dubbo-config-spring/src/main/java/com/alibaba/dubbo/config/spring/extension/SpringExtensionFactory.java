@@ -33,6 +33,9 @@ import java.util.Set;
 public class SpringExtensionFactory implements ExtensionFactory {
     private static final Logger logger = LoggerFactory.getLogger(SpringExtensionFactory.class);
 
+    /**
+     *  spring ApplicationContext集合
+     */
     private static final Set<ApplicationContext> contexts = new ConcurrentHashSet<ApplicationContext>();
 
     public static void addApplicationContext(ApplicationContext context) {
@@ -48,11 +51,20 @@ public class SpringExtensionFactory implements ExtensionFactory {
         contexts.clear();
     }
 
+    /**
+     *
+     * @param type object type. 拓展接口
+     * @param name object name. 拓展名
+     * @param <T> 泛型
+     * @return  拓展对象
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getExtension(Class<T> type, String name) {
+        // 遍历 application context集合
         for (ApplicationContext context : contexts) {
             if (context.containsBean(name)) {
+                // 若context集合内包含name对应的bean，且是type的拓展实现类
                 Object bean = context.getBean(name);
                 if (type.isInstance(bean)) {
                     return (T) bean;
@@ -61,9 +73,10 @@ public class SpringExtensionFactory implements ExtensionFactory {
         }
 
         logger.warn("No spring extension(bean) named:" + name + ", try to find an extension(bean) of type " + type.getName());
-
+        // 没有对应name所属的bean
         for (ApplicationContext context : contexts) {
             try {
+                // 根据type类型获取bean并返回
                 return context.getBean(type);
             } catch (NoUniqueBeanDefinitionException multiBeanExe) {
                 throw multiBeanExe;

@@ -26,6 +26,7 @@ import java.util.List;
 
 /**
  * AdaptiveExtensionFactory
+ *  ExtensionFactory拓展实现类
  */
 @Adaptive
 public class AdaptiveExtensionFactory implements ExtensionFactory {
@@ -33,16 +34,25 @@ public class AdaptiveExtensionFactory implements ExtensionFactory {
     private final List<ExtensionFactory> factories;
 
     public AdaptiveExtensionFactory() {
+        // 获得ExtensionFactory的拓展对象类加载器
         ExtensionLoader<ExtensionFactory> loader = ExtensionLoader.getExtensionLoader(ExtensionFactory.class);
         List<ExtensionFactory> list = new ArrayList<ExtensionFactory>();
+        // 返回@SPI拓展实现类,非 @Adaptive注解和Wrappper拓展实现类所对应的name
+        // 即 META-INF/dubbo/internal/com.alibaba.dubbo.common.extension.ExtensionFactory 文件内相关拓展实现类
+        // AdaptiveExtensionFactory 带有@Adaptive注解，所以返回的是
+        // spi=com.alibaba.dubbo.common.extension.factory.SpiExtensionFactory 相关拓展实现类内容
+        // 即返回的是spi
         for (String name : loader.getSupportedExtensions()) {
+            // 根据name从cachedInstances缓存中获取对应的拓展实现类对象
             list.add(loader.getExtension(name));
         }
+        // 返回不可修改集合，拓展实现类
         factories = Collections.unmodifiableList(list);
     }
 
     @Override
     public <T> T getExtension(Class<T> type, String name) {
+        // 遍历 工厂集合中的拓展实现类
         for (ExtensionFactory factory : factories) {
             T extension = factory.getExtension(type, name);
             if (extension != null) {
