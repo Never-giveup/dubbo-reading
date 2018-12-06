@@ -26,6 +26,10 @@ import java.lang.annotation.Target;
 
 /**
  * Provide helpful information for {@link ExtensionLoader} to inject dependency extension instance.
+ *      用于标记自适应拓展信息，可以添加到类或者方法上，代表了两种不同的使用方式。
+ *  一个拓展接口只有一个拓展类实现类
+ *      1. 标记在类上,代表手动实现它是一个拓展接口的 Adaptive 拓展实现类。
+ *      2. 标记在拓展接口的方法上，代表自动生成代码实现该接口的 Adaptive 拓展实现类
  *
  * @see ExtensionLoader
  * @see URL
@@ -35,6 +39,7 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface Adaptive {
     /**
+     *  value 为拓展实现类真正的拓展名
      * Decide which target extension to be injected. The name of the target extension is decided by the parameter passed
      * in the URL, and the parameter names are given by this method.
      * <p>

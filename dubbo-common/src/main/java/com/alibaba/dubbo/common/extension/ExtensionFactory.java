@@ -18,6 +18,9 @@ package com.alibaba.dubbo.common.extension;
 
 /**
  * ExtensionFactory
+ * 拓展工厂接口
+ *  自适应拓展实现类，
+ *  @see ExtensionLoader#ExtensionLoader(Class) 中，初始化objectFactory
  */
 @SPI
 public interface ExtensionFactory {
@@ -25,9 +28,9 @@ public interface ExtensionFactory {
     /**
      * Get extension.
      *
-     * @param type object type.
-     * @param name object name.
-     * @return object instance.
+     * @param type object type. 拓展接口
+     * @param name object name. 拓展名
+     * @return object instance. 拓展对象
      */
     <T> T getExtension(Class<T> type, String name);
 
